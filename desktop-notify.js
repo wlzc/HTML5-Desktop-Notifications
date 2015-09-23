@@ -15,7 +15,7 @@
  *
  * Author: Tsvetan Tsvetkov (tsekach@gmail.com)
  */
-(function (win) {
+(function(win) {
     /*
      Safari native methods required for Notifications do NOT run in strict mode.
      */
@@ -30,7 +30,7 @@
         },
         empty = {},
         emptyString = "",
-        isSupported = (function () {
+        isSupported = (function() {
             var isSupported = false;
             /*
              * Use try {} catch() {} because the check for IE may throws an exception
@@ -43,18 +43,24 @@
              * successfully - then it is IE9+, if not - an exceptions is thrown.
              */
             try {
-                isSupported = !!(/* Safari, Chrome */win.Notification || /* Chrome & ff-html5notifications plugin */win.webkitNotifications || /* Firefox Mobile */navigator.mozNotification || /* IE9+ */(win.external && win.external.msIsSiteMode() !== undefined));
+                isSupported = !!( /* Safari, Chrome */ win.Notification || /* Chrome & ff-html5notifications plugin */ win.webkitNotifications || /* Firefox Mobile */ navigator.mozNotification || /* IE9+ */ (win.external && win.external.msIsSiteMode() !== undefined));
             } catch (e) {}
             return isSupported;
         }()),
         ieVerification = Math.floor((Math.random() * 10) + 1),
-        isFunction = function (value) { return (value && (value).constructor === Function); },
-        isString = function (value) {return (value && (value).constructor === String); },
-        isObject = function (value) {return (value && (value).constructor === Object); },
+        isFunction = function(value) {
+            return (value && (value).constructor === Function);
+        },
+        isString = function(value) {
+            return (value && (value).constructor === String);
+        },
+        isObject = function(value) {
+            return (value && (value).constructor === Object);
+        },
         /**
          * Dojo Mixin
          */
-        mixin = function (target, source) {
+        mixin = function(target, source) {
             var name, s;
             for (name in source) {
                 s = source[name];
@@ -64,12 +70,13 @@
             }
             return target; // Object
         },
-        noop = function () {},
+        noop = function() {},
         settings = defaultSetting;
+
     function getNotification(title, options) {
         var notification;
         if (win.Notification) { /* Safari 6, Chrome (23+) */
-            notification =  new win.Notification(title, {
+            notification = new win.Notification(title, {
                 /* The notification's icon - For Chrome in Windows, Linux & Chrome OS */
                 icon: isString(options.icon) ? options.icon : options.icon.x32,
                 /* The notification’s subtitle. */
@@ -97,15 +104,15 @@
         }
         return notification;
     }
+
     function getWrapper(notification) {
         return {
-            close: function () {
+            close: function() {
                 if (notification) {
                     if (notification.close) {
                         //http://code.google.com/p/ff-html5notifications/issues/detail?id=58
                         notification.close();
-                    }
-                    else if (notification.cancel) {
+                    } else if (notification.cancel) {
                         notification.cancel();
                     } else if (win.external && win.external.msIsSiteMode()) {
                         if (notification.ieVerification === ieVerification) {
@@ -116,8 +123,11 @@
             }
         };
     }
+
     function requestPermission(callback) {
-        if (!isSupported) { return; }
+        if (!isSupported) {
+            return;
+        }
         var callbackFunction = isFunction(callback) ? callback : noop;
         if (win.webkitNotifications && win.webkitNotifications.checkPermission) {
             /*
@@ -133,9 +143,12 @@
             win.Notification.requestPermission(callbackFunction);
         }
     }
+
     function permissionLevel() {
         var permission;
-        if (!isSupported) { return; }
+        if (!isSupported) {
+            return;
+        }
         if (win.Notification && win.Notification.permissionLevel) {
             //Safari 6
             permission = win.Notification.permissionLevel();
@@ -163,8 +176,8 @@
         }
         return settings;
     }
-    
-    function createNotification(title, options) {
+
+    function createNotification(title, options, funcs) {
         var notification,
             notificationWrapper;
         /*
@@ -179,12 +192,31 @@
         }
         notificationWrapper = getWrapper(notification);
         //Auto-close notification
-        if (settings.autoClose && notification && !notification.ieVerification && notification.addEventListener) {
-            notification.addEventListener("show", function () {
-                var notification = notificationWrapper;
-                win.setTimeout(function () {
-                    notification.close();
-                }, settings.autoClose);
+        if (notification && !notification.ieVerification && notification.addEventListener) {
+
+
+            notification.addEventListener("show", function() {
+
+                funcs && funcs.show && funcs.show(JSON.parse(notification.tag));
+
+                if (settings.autoClose) {
+                    var tempNotify = notificationWrapper;
+                    win.setTimeout(function() {
+                        tempNotify.close();
+                    }, settings.autoClose);
+                }
+            });
+
+            funcs && funcs.click && notification.addEventListener("click", function() {
+                funcs.click(JSON.parse(notification.tag));
+            });
+
+            funcs && funcs.close && notification.addEventListener("close", function() {
+                funcs.close(JSON.parse(notification.tag));
+            });
+
+            funcs && funcs.error && notification.addEventListener("error", function() {
+                funcs.error(JSON.parse(notification.tag));
             });
         }
         return notificationWrapper;
